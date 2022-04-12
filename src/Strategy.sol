@@ -30,6 +30,7 @@ contract Strategy is BaseStrategy {
     IERC20 public rewardToken;
 
 
+
     // solhint-disable-next-line no-empty-blocks
 
     constructor(address _vault) BaseStrategy(_vault) {
@@ -52,21 +53,21 @@ contract Strategy is BaseStrategy {
     function balanceOfWant() public view returns (uint256) {
       return want.balanceOf(address(this));
     }
-    function balanceOfWantInMirrorWorld() public returns (uint256) {  // how much boo we sent to xboo contract
+    function balanceOfWantInMirrorWorld() public view returns (uint256) {  // how much boo we sent to xboo contract
       return IMirrorWorld(mirrorworld).BOOBalance(address(this));
     }
-    function balanceOfWantInAcalab() public returns (uint256) {
+    function balanceOfWantInAcalab() public view returns (uint256 booAmount) {
       uint256 xbooAmount = balanceOfXBOOInAcaLab();
       return IMirrorWorld(mirrorworld).xBOOForBOO(xbooAmount);
     }
-    function balanceOfXBOOInAcaLab() internal  returns (uint256) {
+    function balanceOfXBOOInAcaLab() internal view returns (uint256) {
       IAcalab.UserInfo memory user = IAcalab(acalab).userInfo(chefId, address(this));
       return user.amount;
     }
-    function balanceOfXBOO() internal returns (uint256) {
+    function balanceOfXBOO() internal view returns (uint256) {
       return IERC20(mirrorworld).balanceOf(address(this));
     }
-    function getRewardToken() public returns (IERC20 _rewardToken) {
+    function getRewardToken() public view returns (IERC20 _rewardToken) {
       IAcalab.PoolInfo memory pool = IAcalab(acalab).poolInfo(chefId);
       return pool.RewardToken;
     }

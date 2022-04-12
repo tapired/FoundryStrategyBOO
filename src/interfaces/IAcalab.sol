@@ -22,7 +22,7 @@ interface IAcalab is IERC20{
       }
   function deposit(uint256 _pid, uint256 _amount) external ;
   function withdraw(uint256 _pid, uint256 _amount) external;
-  function userInfo(uint256 _pid, address _userAddress) external returns (UserInfo memory _userInfo);
-  function poolInfo(uint _index) external returns (PoolInfo memory _poolInfo);
+  function userInfo(uint256 _pid, address _userAddress) external view returns (UserInfo memory _userInfo);
+  function poolInfo(uint _index) external view returns (PoolInfo memory _poolInfo);
 
 }
