@@ -10,10 +10,11 @@ import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 import "./interfaces/IAcalab.sol";
 import "./interfaces/IMirrorWorld.sol";
+import "./interfaces/ISpookyRouter.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "./interfaces/<protocol>/<Interface>.sol";
@@ -21,23 +22,26 @@ import "./interfaces/IMirrorWorld.sol";
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
-    using SafeMath for uint256;
 
-    address public constant acalab = address(0x2352b745561e7e6FCD03c093cE7220e3e126ace0);
-    address public constant mirrorworld = address(0xa48d959AE2E88f1dAA7D5F611E01908106dE7598); // aka xboo
+    address public constant acalab =
+        address(0x2352b745561e7e6FCD03c093cE7220e3e126ace0);
+    address public constant mirrorworld =
+        address(0xa48d959AE2E88f1dAA7D5F611E01908106dE7598); // aka xboo
+    address public constant spookyrouter =
+        address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
+    address public constant wftm =
+        address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
 
-    uint public chefId;
+    uint256 public chefId;
     IERC20 public rewardToken;
-
-
 
     // solhint-disable-next-line no-empty-blocks
 
     constructor(address _vault) BaseStrategy(_vault) {
-      want.approve(mirrorworld, type(uint256).max);
-      IERC20(mirrorworld).approve(acalab, type(uint256).max);
+        want.approve(mirrorworld, type(uint256).max);
+        IERC20(mirrorworld).approve(acalab, type(uint256).max);
 
-      rewardToken = getRewardToken();
+        rewardToken = getRewardToken();
         // You can set these parameters on deployment to whatever you want
         // maxReportDelay = 6300;
         // profitFactor = 100;
@@ -50,34 +54,47 @@ contract Strategy is BaseStrategy {
         // Add your own name here, suggestion e.g. "StrategyCreamYFI"
         return "StrategySpookyBOO";
     }
+
     function balanceOfWant() public view returns (uint256) {
-      return want.balanceOf(address(this));
+        return want.balanceOf(address(this));
     }
-    function balanceOfWantInMirrorWorld() public view returns (uint256) {  // how much boo we sent to xboo contract
-      return IMirrorWorld(mirrorworld).BOOBalance(address(this));
+
+    function balanceOfWantInMirrorWorld() public view returns (uint256) {
+        // how much boo we sent to xboo contract
+        return IMirrorWorld(mirrorworld).BOOBalance(address(this));
     }
+
     function balanceOfWantInAcalab() public view returns (uint256 booAmount) {
-      uint256 xbooAmount = balanceOfXBOOInAcaLab();
-      return IMirrorWorld(mirrorworld).xBOOForBOO(xbooAmount);
+        uint256 xbooAmount = balanceOfXBOOInAcaLab();
+        return IMirrorWorld(mirrorworld).xBOOForBOO(xbooAmount);
     }
+
     function balanceOfXBOOInAcaLab() internal view returns (uint256) {
-      IAcalab.UserInfo memory user = IAcalab(acalab).userInfo(chefId, address(this));
-      return user.amount;
+        IAcalab.UserInfo memory user = IAcalab(acalab).userInfo(
+            chefId,
+            address(this)
+        );
+        return user.amount;
     }
+
     function balanceOfXBOO() internal view returns (uint256) {
-      return IERC20(mirrorworld).balanceOf(address(this));
+        return IERC20(mirrorworld).balanceOf(address(this));
     }
+
     function getRewardToken() public view returns (IERC20 _rewardToken) {
-      IAcalab.PoolInfo memory pool = IAcalab(acalab).poolInfo(chefId);
-      return pool.RewardToken;
+        IAcalab.PoolInfo memory pool = IAcalab(acalab).poolInfo(chefId);
+        return pool.RewardToken;
     }
+
     function setChefId(uint256 _chefId) external onlyAuthorized {
-     chefId = _chefId;
+        chefId = _chefId;
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
         // TODO: Build a more accurate estimate using the value of all positions in terms of `want`
-        return balanceOfWantInAcalab().add(balanceOfWant());
+        unchecked {
+            return balanceOfWantInAcalab() + balanceOfWant();
+        }
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -90,50 +107,70 @@ contract Strategy is BaseStrategy {
         )
     // solhint-disable-next-line no-empty-blocks
     {
-
-      uint256 debt = vault.strategies(address(this)).totalDebt;
-      uint256 _lossFromPrevious;
+        uint256 debt = vault.strategies(address(this)).totalDebt;
+        uint256 _lossFromPrevious;
 
         if (debt > estimatedTotalAssets()) {
-            _lossFromPrevious = debt.sub(estimatedTotalAssets());
+            unchecked {
+                _lossFromPrevious = debt - estimatedTotalAssets();
+            }
         }
-        _claimRewards();
+        _claimRewardsAndBOO();
         if (_debtOutstanding > 0) {
             uint256 _amountFreed = 0;
             (_amountFreed, _loss) = liquidatePosition(_debtOutstanding);
             _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
         uint256 _wantBefore = want.balanceOf(address(this)); // 0
-        /* _swapBonusesToWant(); */
+        _swapRewardToWant();
         uint256 _wantAfter = want.balanceOf(address(this)); // 100
 
-        _profit = _wantAfter.sub(_wantBefore);
+        _profit = _wantAfter - _wantBefore;
 
         //net off profit and loss
-        if (_profit >= _loss + _lossFromPrevious) {
-            _profit = _profit - (_loss + _lossFromPrevious);
-            _loss = 0;
-        } else {
-            _profit = 0;
-            _loss = (_loss + _lossFromPrevious) - _profit;
+        unchecked {
+            if (_profit >= _loss + _lossFromPrevious) {
+                _profit = _profit - (_loss + _lossFromPrevious);
+                _loss = 0;
+            } else {
+                _profit = 0;
+                _loss = (_loss + _lossFromPrevious) - _profit;
+            }
         }
         // TODO: Do stuff here to free up any returns back into `want`
         // NOTE: Return `_profit` which is value generated by all positions, priced in `want`
         // NOTE: Should try to free up at least `_debtOutstanding` of underlying position
     }
 
-    function _claimRewards() internal {
-     IAcalab(acalab).withdraw(chefId, balanceOfXBOOInAcaLab());
-     IMirrorWorld(mirrorworld).leave(balanceOfXBOO());
+    function _claimRewardsAndBOO() internal {
+        IAcalab(acalab).withdraw(chefId, balanceOfXBOOInAcaLab());
+        IMirrorWorld(mirrorworld).leave(balanceOfXBOO());
+    }
+
+    function _swapRewardToWant() internal {
+        uint256 bonusToken = rewardToken.balanceOf(address(this));
+        if (bonusToken > 0) {
+            address[] memory path = new address[](3);
+            path[0] = address(rewardToken);
+            path[1] = wftm;
+            path[2] = address(want);
+            ISpookyRouter(spookyrouter).swapExactTokensForTokens(
+                bonusToken,
+                0,
+                path,
+                address(this),
+                block.timestamp + 120
+            );
+        }
     }
 
     // solhint-disable-next-line no-empty-blocks
     function adjustPosition(uint256 _debtOutstanding) internal override {
-      uint256 wantBal = want.balanceOf(address(this));
-      if (wantBal > 0) {
-        IMirrorWorld(mirrorworld).enter(wantBal);
-        IAcalab(acalab).deposit(chefId, balanceOfXBOO());
-      }
+        uint256 wantBal = want.balanceOf(address(this));
+        if (wantBal > 0) {
+            IMirrorWorld(mirrorworld).enter(wantBal);
+            IAcalab(acalab).deposit(chefId, balanceOfXBOO());
+        }
         // TODO: Do something to invest excess `want` tokens (from the Vault) into your positions
         // NOTE: Try to adjust positions so that `_debtOutstanding` can be freed up on *next* harvest (not immediately)
     }
@@ -147,16 +184,28 @@ contract Strategy is BaseStrategy {
         // NOTE: Maintain invariant `want.balanceOf(this) >= _liquidatedAmount`
         // NOTE: Maintain invariant `_liquidatedAmount + _loss <= _amountNeeded`
 
-        uint256 totalAssets = want.balanceOf(address(this));
-        if (_amountNeeded > totalAssets) {
-            _liquidatedAmount = totalAssets;
+        uint256 wantBalance = balanceOfWant();
+        if (wantBalance > _amountNeeded) {
+            // if there is enough free want, let's use it
+            return (_amountNeeded, 0);
+        }
+
+        // we need to free funds
+
+        uint256 amountRequired = _amountNeeded - wantBalance;
+        _withdrawSome(amountRequired);
+        uint256 freeAssets = balanceOfWant();
+        if (_amountNeeded > freeAssets) {
+            _liquidatedAmount = freeAssets;
             unchecked {
-                _loss = _amountNeeded - totalAssets;
+                _loss = _amountNeeded - _liquidatedAmount;
             }
         } else {
             _liquidatedAmount = _amountNeeded;
         }
     }
+
+    function _withdrawSome(uint256 _amountRequired) internal {}
 
     function liquidateAllPositions() internal override returns (uint256) {
         // TODO: Liquidate all positions and return the amount freed.
@@ -190,7 +239,9 @@ contract Strategy is BaseStrategy {
         returns (address[] memory)
     // solhint-disable-next-line no-empty-blocks
     {
-
+        address[] memory protected = new address[](2);
+        protected[0] = address(rewardToken);
+        protected[1] = mirrorworld;
     }
 
     /**

@@ -60,7 +60,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         _setTokenAddrs();
 
         // Choose a token from the tokenAddrs mapping, see _setTokenAddrs for options
-        string memory token = "DAI";
+        string memory token = "BOO";
         weth = IERC20(tokenAddrs["WETH"]);
         want = IERC20(tokenAddrs[token]);
 
@@ -183,6 +183,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        tokenAddrs["BOO"] = 0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE;
     }
 
     function _setTokenPrices() internal {
@@ -193,5 +194,6 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         tokenPrices["USDT"] = 1;
         tokenPrices["USDC"] = 1;
         tokenPrices["DAI"] = 1;
+        tokenPrices["BOO"] = 10;
     }
 }
