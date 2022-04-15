@@ -100,6 +100,9 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         // do here additional setup
         vm_std_cheats.prank(gov);
         vault.setDepositLimit(type(uint256).max);
+
+        vm_std_cheats.prank(gov);
+        strategy.setChefId(3);
     }
 
     // Deploys a vault

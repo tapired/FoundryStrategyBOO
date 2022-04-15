@@ -205,7 +205,11 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function _withdrawSome(uint256 _amountRequired) internal {}
+    function _withdrawSome(uint256 _amountRequired) internal {
+      uint256 _actualWithdrawn = IMirrorWorld(mirrorworld).BOOForxBOO(_amountRequired);
+      IAcalab(acalab).withdraw(chefId, _actualWithdrawn);
+      IMirrorWorld(mirrorworld).leave(_actualWithdrawn);
+    }
 
     function liquidateAllPositions() internal override returns (uint256) {
         // TODO: Liquidate all positions and return the amount freed.
