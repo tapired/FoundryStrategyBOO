@@ -38,10 +38,12 @@ contract Strategy is BaseStrategy {
     // solhint-disable-next-line no-empty-blocks
 
     constructor(address _vault) BaseStrategy(_vault) {
+        chefId = 3;
+        rewardToken = getRewardToken();
+
         want.approve(mirrorworld, type(uint256).max);
         IERC20(mirrorworld).approve(acalab, type(uint256).max);
-
-        rewardToken = getRewardToken();
+        rewardToken.approve(spookyrouter, type(uint256).max);
         // You can set these parameters on deployment to whatever you want
         // maxReportDelay = 6300;
         // profitFactor = 100;
@@ -224,6 +226,7 @@ contract Strategy is BaseStrategy {
     function prepareMigration(address _newStrategy) internal override {
         // TODO: Transfer any non-`want` tokens to the new strategy
         // NOTE: `migrate` will automatically forward all `want` in this strategy to the new one
+
     }
 
     // Override this to add all tokens/tokenized positions this contract manages

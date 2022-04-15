@@ -2,6 +2,8 @@
 pragma solidity ^0.8.12;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
+import "forge-std/console.sol";
+
 
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../Strategy.sol";
@@ -17,6 +19,7 @@ contract StrategyMigrationTest is StrategyFixture {
     function testMigration(uint256 _amount) public {
         vm_std_cheats.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
         tip(address(want), user, _amount);
+        console.log("user want amount", want.balanceOf(user));
 
         // Deposit to the vault and harvest
         vm_std_cheats.prank(user);

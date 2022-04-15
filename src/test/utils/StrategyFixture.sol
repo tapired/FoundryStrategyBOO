@@ -49,7 +49,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     // @dev maximum dollar amount of tokens to be deposited
     uint256 public maxDollarNotional = 1_000_000;
     // @dev maximum dollar amount of tokens for single large amount
-    uint256 public bigDollarNotional = 49_000_000;
+    uint256 public bigDollarNotional = 15_000_000;
     // @dev used for non-fuzz tests to test large amounts
     uint256 public bigAmount;
     // Used for integer approximation
@@ -101,8 +101,8 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         vm_std_cheats.prank(gov);
         vault.setDepositLimit(type(uint256).max);
 
-        vm_std_cheats.prank(gov);
-        strategy.setChefId(3);
+        /* vm_std_cheats.prank(gov);
+        strategy.setChefId(3); */
     }
 
     // Deploys a vault
