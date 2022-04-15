@@ -29,18 +29,22 @@ contract StrategyOperationsTest is StrategyFixture {
     function testStrategyOperation(uint256 _amount) public {
         vm_std_cheats.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
         tip(address(want), user, _amount);
+        console.log("user want amount", want.balanceOf(user));
 
         uint256 balanceBefore = want.balanceOf(address(user));
         vm_std_cheats.prank(user);
         want.approve(address(vault), _amount);
         vm_std_cheats.prank(user);
         vault.deposit(_amount);
+        console.log("user vault shares", vault.balanceOf(user));
+        console.log("vault has want:", want.balanceOf(address(vault)));
         assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
 
         // Note: need to check if this is equivalent to chain.sleep in brownie
         skip(60 * 3); // skip 3 minutes
         vm_std_cheats.prank(strategist);
         strategy.harvest();
+        console.log("strategy has:", strategy.estimatedTotalAssets());
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
         // tend
         vm_std_cheats.prank(strategist);
