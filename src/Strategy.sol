@@ -213,6 +213,9 @@ contract Strategy is BaseStrategy {
 
     function liquidateAllPositions() internal override returns (uint256) {
         // TODO: Liquidate all positions and return the amount freed.
+        require(emergencyExit);
+        IAcalab(acalab).withdraw(chefId, balanceOfXBOOInAcaLab());
+        IMirrorWorld(mirrorworld).leave(balanceOfXBOO());
         return want.balanceOf(address(this));
     }
 
